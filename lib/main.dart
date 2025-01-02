@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/essay_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'text_input.dart';
 
 void main() {
   runApp(const MyApp());
@@ -103,6 +105,68 @@ class _EssayHomePageState extends State<EssayHomePage> {
     }
   }
 
+  // 添加构建输入框的方法
+  Widget _buildInputField() {
+    if (kIsWeb) {
+      // Web 平台使用只读的 SelectableText 和编辑按钮
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SelectableText(
+                _contentController.text,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => _showEditDialog(),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // 非 Web 平台使用普通 TextField
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: TextField(
+          controller: _contentController,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            contentPadding: EdgeInsets.all(16),
+            border: InputBorder.none,
+            hintText: '请输入内容...',
+          ),
+        ),
+      );
+    }
+  }
+
+  // 添加编辑对话框方法
+  Future<void> _showEditDialog() async {
+    final result =
+        await TextInput.showTextEditDialog(context, _contentController.text);
+    if (result != null) {
+      setState(() {
+        _contentController.text = result;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,23 +210,7 @@ class _EssayHomePageState extends State<EssayHomePage> {
               ),
             ),
             const SizedBox(height: 16),
-            // 输入框
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: TextField(
-                controller: _contentController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.all(16),
-                  border: InputBorder.none,
-                  hintText: '请输入内容...',
-                ),
-              ),
-            ),
+            _buildInputField(), // 使用新的输入框构建方法
             const SizedBox(height: 16),
             // 提交按钮
             ElevatedButton(
