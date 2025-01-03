@@ -293,6 +293,7 @@ class _EssayHomePageState extends State<EssayHomePage>
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: _isDrawerOpen ? 250 : 0, // 完全隐藏时宽度为0
+            clipBehavior: Clip.hardEdge, // 添加裁剪
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               border: Border(
@@ -301,33 +302,37 @@ class _EssayHomePageState extends State<EssayHomePage>
                 ),
               ),
             ),
-            child: ListView(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.edit),
-                  title: const Text(AppStrings.writeTab),
-                  selected: _tabController.index == 0,
-                  onTap: () {
-                    setState(() => _tabController.index = 0);
-                    if (MediaQuery.of(context).size.width < 600) {
-                      // 在小屏幕上自动隐藏
-                      _toggleDrawer();
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.history),
-                  title: const Text(AppStrings.historyTab),
-                  selected: _tabController.index == 1,
-                  onTap: () {
-                    setState(() => _tabController.index = 1);
-                    if (MediaQuery.of(context).size.width < 600) {
-                      // 在小屏幕上自动隐藏
-                      _toggleDrawer();
-                    }
-                  },
-                ),
-              ],
+            child: OverflowBox(
+              // 使用 OverflowBox 保持固定宽度
+              maxWidth: 250,
+              child: ListView(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text(AppStrings.writeTab),
+                    selected: _tabController.index == 0,
+                    onTap: () {
+                      setState(() => _tabController.index = 0);
+                      if (MediaQuery.of(context).size.width < 600) {
+                        // 在小屏幕上自动隐藏
+                        _toggleDrawer();
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.history),
+                    title: const Text(AppStrings.historyTab),
+                    selected: _tabController.index == 1,
+                    onTap: () {
+                      setState(() => _tabController.index = 1);
+                      if (MediaQuery.of(context).size.width < 600) {
+                        // 在小屏幕上自动隐藏
+                        _toggleDrawer();
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           // 主内容区域
