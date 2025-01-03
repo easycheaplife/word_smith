@@ -85,6 +85,14 @@ class _EssayHomePageState extends State<EssayHomePage>
     });
   }
 
+  // 添加一个辅助方法来处理页面切换
+  void _handlePageChange(int index) {
+    _pageController.jumpToPage(index);
+    setState(() => _tabController.index = index);
+    // web 版本和移动版本都自动收缩
+    _toggleDrawer();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -311,25 +319,13 @@ class _EssayHomePageState extends State<EssayHomePage>
                     leading: const Icon(Icons.edit),
                     title: const Text(AppStrings.writeTab),
                     selected: _tabController.index == 0,
-                    onTap: () {
-                      _pageController.jumpToPage(0);
-                      setState(() => _tabController.index = 0);
-                      if (MediaQuery.of(context).size.width < 600) {
-                        _toggleDrawer();
-                      }
-                    },
+                    onTap: () => _handlePageChange(0),
                   ),
                   ListTile(
                     leading: const Icon(Icons.history),
                     title: const Text(AppStrings.historyTab),
                     selected: _tabController.index == 1,
-                    onTap: () {
-                      _pageController.jumpToPage(1);
-                      setState(() => _tabController.index = 1);
-                      if (MediaQuery.of(context).size.width < 600) {
-                        _toggleDrawer();
-                      }
-                    },
+                    onTap: () => _handlePageChange(1),
                   ),
                 ],
               ),
