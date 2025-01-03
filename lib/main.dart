@@ -46,6 +46,7 @@ class _EssayHomePageState extends State<EssayHomePage>
   late TabController _tabController;
   List<EssayHistory> _histories = [];
   final HistoryService _historyService = HistoryService();
+  bool _isDrawerOpen = false;
 
   // 定义功能选项
   final Map<String, Map<String, dynamic>> _functionOptions = {
@@ -75,6 +76,13 @@ class _EssayHomePageState extends State<EssayHomePage>
       'function': (EssayService service) => service.reviewEssay,
     },
   };
+
+  // 添加切换侧边栏方法
+  void _toggleDrawer() {
+    setState(() {
+      _isDrawerOpen = !_isDrawerOpen;
+    });
+  }
 
   @override
   void initState() {
@@ -225,7 +233,10 @@ class _EssayHomePageState extends State<EssayHomePage>
 
   Future<void> _pickAndRecognizeImage() async {
     try {
-      setState(() => _isLoading = true);
+      setState(() {
+        _isLoading = true;
+        _result = ''; // 清空结果显示
+      });
 
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery);
@@ -268,23 +279,69 @@ class _EssayHomePageState extends State<EssayHomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: _toggleDrawer,
+          tooltip: AppStrings.toggleDrawer,
+        ),
         title: Text(AppStrings.appTitle),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: AppStrings.writeTab),
-            Tab(text: AppStrings.historyTab),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Row(
         children: [
-          _buildWriteTab(),
-          HistoryPage(
-            histories: _histories,
-            onClearHistories: _clearHistories,
+          // 侧边栏
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: _isDrawerOpen ? 250 : 0, // 完全隐藏时宽度为0
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                right: BorderSide(
+                  color: Colors.grey.shade300,
+                ),
+              ),
+            ),
+            child: ListView(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: const Text(AppStrings.writeTab),
+                  selected: _tabController.index == 0,
+                  onTap: () {
+                    setState(() => _tabController.index = 0);
+                    if (MediaQuery.of(context).size.width < 600) {
+                      // 在小屏幕上自动隐藏
+                      _toggleDrawer();
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.history),
+                  title: const Text(AppStrings.historyTab),
+                  selected: _tabController.index == 1,
+                  onTap: () {
+                    setState(() => _tabController.index = 1);
+                    if (MediaQuery.of(context).size.width < 600) {
+                      // 在小屏幕上自动隐藏
+                      _toggleDrawer();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          // 主内容区域
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildWriteTab(),
+                HistoryPage(
+                  histories: _histories,
+                  onClearHistories: _clearHistories,
+                ),
+              ],
+            ),
           ),
         ],
       ),

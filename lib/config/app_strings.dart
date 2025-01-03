@@ -32,4 +32,7 @@ class AppStrings {
   static const clearHistory = '清除历史记录';
   static const clearHistoryTitle = '清除历史记录';
   static const clearHistoryConfirm = '确定要清除所有历史记录吗？此操作不可恢复。';
+
+  // 侧边栏相关
+  static const toggleDrawer = '显示/隐藏菜单';
 }
