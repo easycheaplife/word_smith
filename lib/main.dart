@@ -47,6 +47,7 @@ class _EssayHomePageState extends State<EssayHomePage>
   List<EssayHistory> _histories = [];
   final HistoryService _historyService = HistoryService();
   bool _isDrawerOpen = false;
+  final PageController _pageController = PageController();
 
   // 定义功能选项
   final Map<String, Map<String, dynamic>> _functionOptions = {
@@ -89,7 +90,6 @@ class _EssayHomePageState extends State<EssayHomePage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadHistories();
-    // 设置默认示例文字
     _contentController.text = _functionOptions[_selectedFunction]!['example'];
   }
 
@@ -312,9 +312,9 @@ class _EssayHomePageState extends State<EssayHomePage>
                     title: const Text(AppStrings.writeTab),
                     selected: _tabController.index == 0,
                     onTap: () {
+                      _pageController.jumpToPage(0);
                       setState(() => _tabController.index = 0);
                       if (MediaQuery.of(context).size.width < 600) {
-                        // 在小屏幕上自动隐藏
                         _toggleDrawer();
                       }
                     },
@@ -324,9 +324,9 @@ class _EssayHomePageState extends State<EssayHomePage>
                     title: const Text(AppStrings.historyTab),
                     selected: _tabController.index == 1,
                     onTap: () {
+                      _pageController.jumpToPage(1);
                       setState(() => _tabController.index = 1);
                       if (MediaQuery.of(context).size.width < 600) {
-                        // 在小屏幕上自动隐藏
                         _toggleDrawer();
                       }
                     },
@@ -337,8 +337,14 @@ class _EssayHomePageState extends State<EssayHomePage>
           ),
           // 主内容区域
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              onPageChanged: (index) {
+                setState(() {
+                  _tabController.index = index;
+                });
+              },
               children: [
                 _buildWriteTab(),
                 HistoryPage(
@@ -435,8 +441,9 @@ class _EssayHomePageState extends State<EssayHomePage>
 
   @override
   void dispose() {
-    _contentController.dispose();
+    _pageController.dispose();
     _tabController.dispose();
+    _contentController.dispose();
     super.dispose();
   }
 }
