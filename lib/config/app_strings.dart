@@ -19,4 +19,17 @@ class AppStrings {
   // 错误信息
   static const recognitionError = '识别失败: ';
   static const recognitionErrorDetail = '识别错误: ';
+
+  // 历史记录相关
+  static const historyTab = '历史记录';
+  static const writeTab = '写作';
+  static const emptyHistory = '暂无历史记录';
+  static const timeFormat = 'yyyy-MM-dd HH:mm:ss';
+  static const functionLabel = '功能';
+  static const inputLabel = '输入';
+  static const outputLabel = '输出';
+  static const timeLabel = '时间';
+  static const clearHistory = '清除历史记录';
+  static const clearHistoryTitle = '清除历史记录';
+  static const clearHistoryConfirm = '确定要清除所有历史记录吗？此操作不可恢复。';
 }

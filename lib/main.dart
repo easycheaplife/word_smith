@@ -5,6 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import 'platform/text_editor.dart';
 import 'config/essay_examples.dart';
 import 'config/app_strings.dart';
+import 'models/essay_history.dart';
+import 'pages/history_page.dart';
+import 'services/history_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,12 +36,16 @@ class EssayHomePage extends StatefulWidget {
   State<EssayHomePage> createState() => _EssayHomePageState();
 }
 
-class _EssayHomePageState extends State<EssayHomePage> {
+class _EssayHomePageState extends State<EssayHomePage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _contentController = TextEditingController();
   final EssayService _essayService = EssayService();
   String _result = '';
   bool _isLoading = false;
   String _selectedFunction = 'write'; // 默认选择写作文
+  late TabController _tabController;
+  List<EssayHistory> _histories = [];
+  final HistoryService _historyService = HistoryService();
 
   // 定义功能选项
   final Map<String, Map<String, dynamic>> _functionOptions = {
@@ -72,12 +79,29 @@ class _EssayHomePageState extends State<EssayHomePage> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadHistories();
     // 设置默认示例文字
     _contentController.text = _functionOptions[_selectedFunction]!['example'];
   }
 
+  Future<void> _loadHistories() async {
+    final loadedHistories = await _historyService.loadHistories();
+    setState(() {
+      _histories = loadedHistories;
+    });
+  }
+
+  Future<void> _clearHistories() async {
+    await _historyService.clearHistories();
+    setState(() {
+      _histories = [];
+    });
+  }
+
   Future<void> _processEssayRequest() async {
     if (_contentController.text.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.emptyContentError)),
       );
@@ -93,14 +117,27 @@ class _EssayHomePageState extends State<EssayHomePage> {
       final apiCall =
           _functionOptions[_selectedFunction]!['function'](_essayService);
       final response = await apiCall(_contentController.text);
+      if (!mounted) return;
       setState(() {
         _result = response;
+        _histories.insert(
+          0,
+          EssayHistory(
+            input: _contentController.text,
+            output: response,
+            timestamp: DateTime.now(),
+            functionType: _functionOptions[_selectedFunction]!['label'],
+          ),
+        );
       });
+      await _historyService.saveHistories(_histories);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${AppStrings.errorPrefix}$e')),
       );
     } finally {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -196,17 +233,20 @@ class _EssayHomePageState extends State<EssayHomePage> {
       if (image != null) {
         final fileName = await _essayService.uploadImage(image);
         final recognizedText = await _essayService.recognizeImage(fileName);
-
+        if (!mounted) return;
         setState(() {
           _contentController.text = recognizedText;
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('错误: $e')),
+        SnackBar(content: Text('${AppStrings.errorPrefix}$e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -230,83 +270,103 @@ class _EssayHomePageState extends State<EssayHomePage> {
       appBar: AppBar(
         title: Text(AppStrings.appTitle),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: AppStrings.writeTab),
+            Tab(text: AppStrings.historyTab),
+          ],
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 下拉选择框
-            Container(
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildWriteTab(),
+          HistoryPage(
+            histories: _histories,
+            onClearHistories: _clearHistories,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWriteTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 下拉选择框
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedFunction,
+                isExpanded: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                items: _functionOptions.entries.map((entry) {
+                  return DropdownMenuItem<String>(
+                    value: entry.key,
+                    child: Text(entry.value['label']),
+                  );
+                }).toList(),
+                onChanged: (String? value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedFunction = value;
+                      _contentController.text =
+                          _functionOptions[value]!['example'];
+                      _result = ''; // 清空结果显示
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildInputField(), // 使用新的输入框构建方法
+          const SizedBox(height: 16),
+          // 提交按钮
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: SizedBox(
+              height: 36,
+              child: ElevatedButton(
+                onPressed: _processEssayRequest,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  minimumSize: const Size.fromHeight(36),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: Text(AppStrings.submitButton),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // 结果显示区域
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey.shade300),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedFunction,
-                  isExpanded: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  items: _functionOptions.entries.map((entry) {
-                    return DropdownMenuItem<String>(
-                      value: entry.key,
-                      child: Text(entry.value['label']),
-                    );
-                  }).toList(),
-                  onChanged: (String? value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedFunction = value;
-                        _contentController.text =
-                            _functionOptions[value]!['example'];
-                        _result = ''; // 清空结果显示
-                      });
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildInputField(), // 使用新的输入框构建方法
-            const SizedBox(height: 16),
-            // 提交按钮
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: SizedBox(
-                height: 36,
-                child: ElevatedButton(
-                  onPressed: _processEssayRequest,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    minimumSize: const Size.fromHeight(36),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      child: Text(_result),
                     ),
-                  ),
-                  child: Text(AppStrings.submitButton),
-                ),
-              ),
             ),
-            const SizedBox(height: 16),
-            // 结果显示区域
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        child: Text(_result),
-                      ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -314,6 +374,7 @@ class _EssayHomePageState extends State<EssayHomePage> {
   @override
   void dispose() {
     _contentController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 }
