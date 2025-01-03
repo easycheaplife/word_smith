@@ -259,6 +259,7 @@ class _EssayHomePageState extends State<EssayHomePage> {
                         _selectedFunction = value;
                         _contentController.text =
                             _functionOptions[value]!['example'];
+                        _result = ''; // 清空结果显示
                       });
                     }
                   },
