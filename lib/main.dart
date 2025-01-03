@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'services/essay_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'text_input.dart';
+import 'package:image_picker/image_picker.dart';
+import 'platform/text_editor.dart';
 
 void main() {
   runApp(const MyApp());
@@ -108,8 +109,9 @@ class _EssayHomePageState extends State<EssayHomePage> {
   // 添加构建输入框的方法
   Widget _buildInputField() {
     if (kIsWeb) {
-      // Web 平台使用只读的 SelectableText 和编辑按钮
+      // Web 平台使用固定高度的只读文本显示
       return Container(
+        height: 150, // 固定高度
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -117,49 +119,103 @@ class _EssayHomePageState extends State<EssayHomePage> {
         ),
         child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SelectableText(
+            SingleChildScrollView(
+              // 添加滚动支持
+              padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
+              child: Text(
                 _contentController.text,
                 style: const TextStyle(fontSize: 14),
               ),
             ),
             Positioned(
-              right: 8,
               top: 8,
-              child: IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _showEditDialog(),
+              right: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.image),
+                    onPressed: _pickAndRecognizeImage,
+                    tooltip: '从图片识别文字',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: _showEditDialog,
+                    tooltip: '编辑文本',
+                  ),
+                ],
               ),
             ),
           ],
         ),
       );
     } else {
-      // 非 Web 平台使用普通 TextField
+      // 非 Web 平台使用固定高度的 TextField
       return Container(
+        height: 150, // 固定高度
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey.shade300),
         ),
-        child: TextField(
-          controller: _contentController,
-          maxLines: 5,
-          decoration: const InputDecoration(
-            contentPadding: EdgeInsets.all(16),
-            border: InputBorder.none,
-            hintText: '请输入内容...',
-          ),
+        child: Stack(
+          children: [
+            TextField(
+              controller: _contentController,
+              maxLines: null, // 允许无限行
+              expands: true, // 填充可用空间
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.fromLTRB(16, 40, 16, 16),
+                border: InputBorder.none,
+                hintText: '请输入内容或点击右上角图标识别图片文字...',
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.image),
+                onPressed: _pickAndRecognizeImage,
+                tooltip: '从图片识别文字',
+              ),
+            ),
+          ],
         ),
       );
     }
   }
 
+  Future<void> _pickAndRecognizeImage() async {
+    try {
+      setState(() => _isLoading = true);
+
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        final fileName = await _essayService.uploadImage(image);
+        final recognizedText = await _essayService.recognizeImage(fileName);
+
+        setState(() {
+          _contentController.text = recognizedText;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('错误: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   // 添加编辑对话框方法
   Future<void> _showEditDialog() async {
-    final result =
-        await TextInput.showTextEditDialog(context, _contentController.text);
+    final result = await WebTextEditor.showEditDialog(
+      context,
+      _contentController.text,
+    );
+
     if (result != null) {
       setState(() {
         _contentController.text = result;
@@ -213,12 +269,22 @@ class _EssayHomePageState extends State<EssayHomePage> {
             _buildInputField(), // 使用新的输入框构建方法
             const SizedBox(height: 16),
             // 提交按钮
-            ElevatedButton(
-              onPressed: _processEssayRequest,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: SizedBox(
+                height: 36,
+                child: ElevatedButton(
+                  onPressed: _processEssayRequest,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    minimumSize: const Size.fromHeight(36),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  child: const Text('提交'),
+                ),
               ),
-              child: const Text('提交'),
             ),
             const SizedBox(height: 16),
             // 结果显示区域

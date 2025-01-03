@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EssayService {
   Future<String> postEssayRequest(String endpoint, String content) async {
@@ -48,4 +49,61 @@ class EssayService {
 
   Future<String> reviewEssay(String content) =>
       postEssayRequest(ApiConfig.essayReview, content);
+
+  Future<String> uploadImage(XFile image) async {
+    try {
+      // 读取文件内容
+      final bytes = await image.readAsBytes();
+      final uri = Uri.parse(ApiConfig.baseUrl + ApiConfig.fileUpload);
+
+      // 创建 multipart 请求
+      var request = http.MultipartRequest('POST', uri);
+
+      // 添加文件
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: image.name,
+        ),
+      );
+
+      // 发送请求
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        return jsonResponse['data']['file_name'];
+      } else {
+        throw Exception('上传失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('上传错误: $e');
+    }
+  }
+
+  Future<String> recognizeImage(String fileName) async {
+    try {
+      final imageUrl =
+          '${ApiConfig.baseUrl}${ApiConfig.fileDownload}/$fileName';
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.imageRecognition}').replace(
+          queryParameters: {
+            'image_url': imageUrl,
+            'question': '识别图片的文字,只显示图片文本框的主要内容，不显示其他无关信息',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        return jsonResponse['data']['data']['content'] ?? '无法识别文字';
+      } else {
+        throw Exception('识别失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('识别错误: $e');
+    }
+  }
 }
