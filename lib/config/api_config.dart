@@ -1,5 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = 'http://8.140.248.32:80';
+  static const String baseUrl = 'http://127.0.0.1:80';
 
   static const String essayWrite = '/api/essay/write';
   static const String essayTemplate = '/api/essay/template';
